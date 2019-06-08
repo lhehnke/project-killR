@@ -192,7 +192,6 @@ ggplotly(p)
 
 ```{r}
 # Plot deadliest countries with information on sex of killers
-## TODO: Fix ordering.
 p <- killers_df %>%
   filter(!is.na(country)) %>%
   group_by(sex) %>%
@@ -286,6 +285,7 @@ Row
 ### In which countries were the most victims killed? 
 
 ```{r}
+# Plot killing by country
 p <- killers_df %>%
   filter(!is.na(country)) %>%
   group_by(country, sex) %>%
@@ -317,7 +317,8 @@ victims_merge <- killers_df %>%
   summarize_at(vars(victims_proven = victims_proven, victims_suspected = victims_suspected), sum, na.rm = TRUE) %>%
   select(country, victims_proven, victims_suspected) %>% 
   mutate_at(vars(victims_proven, victims_suspected), list(~ ifelse(is.na(.), 0, .))) %>%
-  mutate(country = gsub("United States", "United States of America", country))
+  mutate(country = gsub("United States", "United States of America", country)) %>%
+  mutate(victims_share = victims_proven/sum(victims_proven)) # calculate share
 
 # Download map and merge data
 world_map <- get_data_from_map(download_map_data("custom/world-eckert3"))
@@ -330,12 +331,12 @@ map_killings <- world_map %>%
 ### This interactive map shows the number of proven victims for each country. {data-width=740}
 
 ```{r}
-# Set theme
-## TODO: Change colors!
+# Plot killings by country
 hcmap("custom/world-eckert3", data = map_killings, value = "victims_proven", 
       joinBy = "hc-a2", name = "Proven victims",
       dataLabels = list(enabled = TRUE, format = "{point.name}"),
       borderColor = "#FAFAFA", borderWidth = 0.1) %>%
+  hc_colorAxis(minColor = "#D4BDC1", maxColor = "#7d3945") %>%
   hc_mapNavigation(enabled = TRUE)
 ```
 
