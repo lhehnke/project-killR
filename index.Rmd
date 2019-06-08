@@ -1,0 +1,354 @@
+---
+title: "Project KillR"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    theme: yeti
+    navbar:
+      - { title: "About", href: "https://dataplanes.org" }
+    source_code: https://github.com/lhehnke/project-killR
+
+---
+
+<style>
+  
+  @import url(https://fonts.googleapis.com/css?family=Open+Sans:300);
+.navbar-inverse {
+  background-color: #7d3945;
+  border-color: #7d3945;
+}
+
+</style>
+
+```{r, include = FALSE}
+# Load flexdashboard
+library(flexdashboard)
+
+# Install and load packages using pacman
+if (!require("pacman")) install.packages("pacman")
+library(pacman)
+
+p_load(highcharter, leaflet, lubridate, kableExtra, plotly, tidyverse)
+
+# Set directory
+MAIN_DIR <- rprojroot::find_rstudio_root_file()
+
+# Import data
+killers_df <- readRDS(file = paste(MAIN_DIR, "serial_killers_data.rds", sep = "/")) 
+```
+
+Data {data-icon="fa-chart-line"}
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+### This table contains data on `r nrow(killers_df)` serial killers from `r killers_df %>% filter(!is.na(country)) %>% distinct(country) %>% nrow()` countries that was scraped from [Wikipedia](https://de.wikipedia.org/wiki/Liste_von_Serienmördern#Serienmörder-Paare/Gruppen) in February 2018. You can find the replication script and original dataset [here](https://github.com/lhehnke/serial-killers).
+
+```{r}
+killers_df %>% 
+  select(name, pseudonym, sex, country, victims_proven, victims_suspected) %>%
+  arrange(name, -victims_proven) %>%
+  rename(Killer = name, Alias = pseudonym, Sex = sex, Country = country, "Victims (proven)" = victims_proven, "Victims (suspected)" = victims_suspected) %>%
+  kable(escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Timeline {data-icon="fa-history"}
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+```{r, include = FALSE}
+# Calculate timeline
+timeline <- killers_df %>%
+  select(name, active_from, active_to) %>%
+  na.omit() %>%   
+  gather(status, years, -name) %>%
+  select(-status) %>%
+  group_by(name) %>% 
+  complete(name, years = full_seq(years, 1)) %>%
+  ungroup() %>%
+  count(years) %>%
+  rename(Year = years, Count = n) %>%
+  ungroup() %>% 
+  mutate(Year = lubridate::ymd(Year, truncated = 2L)) %>% 
+  complete(Year = seq.Date(min(Year), max(Year), by = "year")) %>%
+  mutate(Year = year(Year)) %>%
+  mutate(Count = replace(Count, is.na(Count), 0))
+```
+
+### The first serial killer emerged in `r timeline %>% summarize(min(Year)) %>% pull()`. In 2013, `r timeline %>% filter(Year == 2013) %>% pull(Count)` killers where still active. The peak was in 1990 with `r timeline %>% summarize(max(Count)) %>% pull()` killers. {data-width=740}
+
+```{r}
+# Plot number of killers active
+library(highcharter)
+
+timeline %>%
+  hchart("line", hcaes(x = "Year", y = "Count"), name = "Killers active", color = "#7d3945")
+```
+
+### This table shows the number of active serial killers for each year from `r timeline %>% summarize(min(Year)) %>% pull()` to `r timeline %>% summarize(max(Year)) %>% pull()`. {data-width=300}
+
+```{r}
+timeline %>%
+  arrange(-Count, Year) %>%
+  kable(escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```  
+
+
+Killers {data-icon="fa-user-secret"}
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+### Killers {.value-box}
+
+```{r}
+killers <- nrow(killers_df)
+valueBox(killers, icon = "fa-user-secret")
+```
+
+### Countries {.value-box}
+
+```{r}
+countries <- killers_df %>% 
+  filter(!is.na(country)) %>%
+  distinct(country) %>%
+  nrow()
+valueBox(countries, icon = "fa-globe")
+```
+
+### Time span {.value-box}
+
+```{r}
+to_from <- killers_df %>%
+  mutate(year_min = min(active_from, na.rm = TRUE), year_max = max(active_to, na.rm = TRUE)) %>%
+  unite_("year_range", c("year_min","year_max"), sep = "-") %>%
+  slice(1) %>%
+  pull()
+valueBox(to_from, icon = "fa-history")
+```
+
+Row {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+### Who are the deadliest serial killers?
+
+```{r}
+# Plot killers with most proven victims
+p <- killers_df %>%
+  group_by(name) %>%
+  summarise(victims_proven = sum(victims_proven, na.rm = TRUE)) %>% 
+  top_n(10, victims_proven) %>%
+  ungroup() %>%
+  mutate(name = reorder(name, victims_proven)) %>%
+  rename(Killer = name, `Victims (proven)` = victims_proven) %>%
+  ggplot(mapping = aes(x = Killer, y = `Victims (proven)`)) +
+  geom_bar(stat = 'identity', width = 0.5, alpha = 0.8, fill = "#7d3945", color = "#7d3945") +
+  labs(x = "", y = "") + ylim(0, 250) + coord_flip() + theme_minimal()
+
+ggplotly(p)
+```
+
+### Are serial killers mainly male or female?
+
+```{r}
+# Number of killers by sex
+p <- killers_df %>%
+  group_by(sex) %>%
+  dplyr::count(sort = TRUE) %>%
+  rename(Sex = sex, Count = n) %>%
+  ggplot(mapping = aes(x = Sex, y = Count)) +
+  geom_bar(aes(fill = Sex), stat = 'identity', width = 0.5, alpha = 0.8, color = "#7d3945") +
+  scale_fill_manual("Sex", values = c("female" = "#a04958", "male" = "#5a2932")) +
+  labs(x = "", y = "") + theme_minimal()
+
+ggplotly(p)
+```
+
+### Who are the deadliest male and female killers?
+
+```{r}
+# Plot killers with most proven victims by sex
+p <- killers_df %>%
+  group_by(sex) %>%
+  top_n(10, victims_proven) %>%
+  ungroup() %>%
+  mutate(name = reorder(name, victims_proven)) %>%
+  rename(Killer = name, `Victims (proven)` = victims_proven, Sex = sex) %>%
+  ggplot(mapping = aes(x = Killer, y = `Victims (proven)`)) +
+  geom_bar(aes(fill = Sex), stat = 'identity', width = 0.5, alpha = 0.8, color = "#7d3945") +
+  scale_fill_manual(name = "", values = c("female"= "#a04958", "male" = "#5a2932")) + 
+  labs(x = "", y = "") + ylim(0, 250) + coord_flip() + theme_minimal()
+
+ggplotly(p)
+```
+
+### Where do they come from?
+
+```{r}
+# Plot deadliest countries with information on sex of killers
+## TODO: Fix ordering.
+p <- killers_df %>%
+  filter(!is.na(country)) %>%
+  group_by(sex) %>%
+  dplyr::count(country, sort = TRUE) %>%
+  ungroup() %>%
+  top_n(10, n) %>%
+  ungroup() %>%
+  mutate(country = reorder(country, n)) %>%
+  rename(Country = country, Count = n, Sex = sex) %>%
+  ggplot(mapping = aes(x = Country, y = Count)) +
+  geom_bar(aes(fill = Sex), stat = 'identity', width = 0.5, alpha = 0.8, color = "#7d3945") +
+  scale_fill_manual(name = "", values = c("female"= "#a04958", "male" = "#5a2932")) + 
+  labs(x = "", y = "") + ylim(0, 250) + coord_flip() + theme_minimal()
+
+ggplotly(p)
+```
+
+Victims {data-icon="fa-skull"}
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+### Proven victims {.value-box}
+
+```{r}
+victims_prov <- killers_df %>% 
+  summarize(sum(victims_proven, na.rm = TRUE)) %>%
+  pull()
+valueBox(victims_prov, icon = "fa-skull")
+```
+
+### Suspected victims {.value-box}
+
+```{r}
+victims_sus <- killers_df %>%
+  mutate(victims_suspected = as.numeric(victims_suspected)) %>%
+  summarize(sum(victims_suspected, na.rm = TRUE)) %>%
+  pull()
+valueBox(victims_sus, icon = "fa-question")
+```
+
+### Time span {.value-box}
+
+```{r}
+to_from <- killers_df %>%
+  mutate(year_min = min(active_from, na.rm = TRUE), year_max = max(active_to, na.rm = TRUE)) %>%
+  unite_("year_range", c("year_min","year_max"), sep = "-") %>%
+  slice(1) %>%
+  pull()
+valueBox(to_from, icon = "fa-history")
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Who killed more victims: Male or female serial killers?
+
+```{r}
+# Plot killings by sex of killers
+## TODO: Sex shows twice in plotly graph. Remove once.
+p <- killers_df %>%
+  group_by(sex) %>%
+  summarise(victims_proven = sum(victims_proven, na.rm = TRUE)) %>% 
+  top_n(10, victims_proven) %>%
+  ungroup() %>%
+  mutate(sex = reorder(sex, victims_proven)) %>%
+  rename(Sex = sex, `Victims (proven)` = victims_proven) %>%
+  ggplot(mapping = aes(x = Sex, y = `Victims (proven)`)) +
+  geom_bar(aes(fill = Sex), stat = 'identity', width = 0.5, alpha = 0.8, color = "#7d3945") +
+  scale_fill_manual(name = "", values = c("female"= "#a04958", "male" = "#5a2932")) + 
+  labs(x = "", y = "Proven victims") + theme_minimal()
+
+ggplotly(p)
+```
+
+### Who killed the most victims? {data-width=440} 
+
+```{r}
+killers_df %>% 
+  select(name, sex, victims_proven, victims_suspected) %>%
+  arrange(-victims_proven, name) %>%
+  rename(Killer = name, Sex = sex, "Victims (proven)" = victims_proven, "Victims (suspected)" = victims_suspected) %>%
+  kable(escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Row
+-----------------------------------------------------------------------
+
+### In which countries were the most victims killed? 
+
+```{r}
+p <- killers_df %>%
+  filter(!is.na(country)) %>%
+  group_by(country, sex) %>%
+  summarise(victims_proven = sum(victims_proven, na.rm = TRUE)) %>% 
+  ungroup() %>%
+  top_n(10, victims_proven) %>%
+  mutate(country = reorder(country, victims_proven)) %>%
+  rename(Country = country, `Victims (proven)` = victims_proven, Sex = sex) %>%
+  ggplot(mapping = aes(x = Country, y = `Victims (proven)`)) +
+  geom_bar(aes(fill = Sex), stat = 'identity', width = 0.5, alpha = 0.8, color = "#7d3945") +
+  scale_fill_manual(name = "", values = c("female"= "#a04958", "male" = "#5a2932")) + 
+  labs(x = "", y = "") + ylim(0, 2000) + coord_flip() + theme_minimal()
+
+ggplotly(p)
+```
+
+Locations {data-icon="fa-map-marker-alt"}
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+```{r, include = FALSE}
+# Select columns to merge
+victims_merge <- killers_df %>%
+  filter(!is.na(country)) %>%
+  group_by(country) %>%
+  mutate(victims_suspected = as.numeric(victims_suspected)) %>%
+  summarize_at(vars(victims_proven = victims_proven, victims_suspected = victims_suspected), sum, na.rm = TRUE) %>%
+  select(country, victims_proven, victims_suspected) %>% 
+  mutate_at(vars(victims_proven, victims_suspected), list(~ ifelse(is.na(.), 0, .))) %>%
+  mutate(country = gsub("United States", "United States of America", country))
+
+# Download map and merge data
+world_map <- get_data_from_map(download_map_data("custom/world-eckert3"))
+
+map_killings <- world_map %>%
+  left_join(victims_merge, by = c("name" = "country")) %>% 
+  mutate_at(.vars = vars(victims_proven, victims_suspected), .funs = funs(ifelse(is.na(.), 0, .)))
+```
+
+### This interactive map shows the number of proven victims for each country. {data-width=740}
+
+```{r}
+# Set theme
+## TODO: Change colors!
+hcmap("custom/world-eckert3", data = map_killings, value = "victims_proven", 
+      joinBy = "hc-a2", name = "Proven victims",
+      dataLabels = list(enabled = TRUE, format = "{point.name}"),
+      borderColor = "#FAFAFA", borderWidth = 0.1) %>%
+  hc_mapNavigation(enabled = TRUE)
+```
+
+### This table provides an overview of the countries with the highest number of serial killers from `r timeline %>% summarize(min(Year)) %>% pull()` to `r timeline %>% summarize(max(Year)) %>% pull()`. {data-width=300} 
+
+```{r}
+killers_df %>%
+  select(name, pseudonym, country) %>%
+  dplyr::count(country, sort = TRUE) %>%
+  ungroup() %>%
+  mutate(country = reorder(country, n)) %>%
+  filter(!is.na(country)) %>%
+  rename(Country = country, Count = n) %>%
+  kable(escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```  
