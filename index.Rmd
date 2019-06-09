@@ -79,7 +79,7 @@ timeline <- killers_df %>%
   mutate(Count = replace(Count, is.na(Count), 0))
 ```
 
-### The first serial killer emerged in `r timeline %>% summarize(min(Year)) %>% pull()`. In 2013, `r timeline %>% filter(Year == 2013) %>% pull(Count)` killers where still active. The peak was in 1990 with `r timeline %>% summarize(max(Count)) %>% pull()` killers. {data-width=740}
+### The first serial killer appeared in `r timeline %>% summarize(min(Year)) %>% pull()`. In 2013, `r timeline %>% filter(Year == 2013) %>% pull(Count)` killers were still active. The peak was in 1990 with `r timeline %>% summarize(max(Count)) %>% pull()` killers. {data-width=740}
 
 ```{r}
 # Plot number of killers active
@@ -109,7 +109,7 @@ Row
 
 ```{r}
 killers <- nrow(killers_df)
-valueBox(killers, icon = "fa-user-secret")
+valueBox(killers, icon = "fa-user-secret") 
 ```
 
 ### Countries {.value-box}
