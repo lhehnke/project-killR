@@ -53,49 +53,6 @@ killers_df %>%
   datatable(filter = "bottom", style = "bootstrap")
 ```
 
-Timeline {data-icon="fa-history"}
-=======================================================================
-
-Row
------------------------------------------------------------------------
-
-```{r, include = FALSE}
-# Calculate timeline
-timeline <- killers_df %>%
-  select(name, active_from, active_to) %>%
-  na.omit() %>%   
-  gather(status, years, -name) %>%
-  select(-status) %>%
-  group_by(name) %>% 
-  complete(name, years = full_seq(years, 1)) %>%
-  ungroup() %>%
-  count(years) %>%
-  rename(Year = years, Count = n) %>%
-  ungroup() %>% 
-  mutate(Year = lubridate::ymd(Year, truncated = 2L)) %>% 
-  complete(Year = seq.Date(min(Year), max(Year), by = "year")) %>%
-  mutate(Year = year(Year)) %>%
-  mutate(Count = replace(Count, is.na(Count), 0))
-```
-
-### The first serial killer appeared in `r timeline %>% summarize(min(Year)) %>% pull()`. In 2013, `r timeline %>% filter(Year == 2013) %>% pull(Count)` killers were still active, while the peak was in 1990 with `r timeline %>% summarize(max(Count)) %>% pull()` killers. Hover over the timeline to display the count for each year. {data-width=740}
-
-```{r}
-# Plot number of killers active
-timeline %>%
-  hchart("line", hcaes(x = "Year", y = "Count"), name = "Killers active", color = "#7d3945")
-```
-
-### This table shows the number of active serial killers for each year from `r timeline %>% summarize(min(Year)) %>% pull()` to `r timeline %>% summarize(max(Year)) %>% pull()`. {data-width=300}
-
-```{r}
-timeline %>%
-  arrange(-Count, Year) %>%
-  kable(escape = FALSE) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
-```  
-
-
 Killers {data-icon="fa-user-secret"}
 =======================================================================
 
@@ -298,6 +255,48 @@ p <- killers_df %>%
 
 ggplotly(p)
 ```
+
+Timeline {data-icon="fa-history"}
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+```{r, include = FALSE}
+# Calculate timeline
+timeline <- killers_df %>%
+  select(name, active_from, active_to) %>%
+  na.omit() %>%   
+  gather(status, years, -name) %>%
+  select(-status) %>%
+  group_by(name) %>% 
+  complete(name, years = full_seq(years, 1)) %>%
+  ungroup() %>%
+  count(years) %>%
+  rename(Year = years, Count = n) %>%
+  ungroup() %>% 
+  mutate(Year = lubridate::ymd(Year, truncated = 2L)) %>% 
+  complete(Year = seq.Date(min(Year), max(Year), by = "year")) %>%
+  mutate(Year = year(Year)) %>%
+  mutate(Count = replace(Count, is.na(Count), 0))
+```
+
+### The first serial killer appeared in `r timeline %>% summarize(min(Year)) %>% pull()`. In 2013, `r timeline %>% filter(Year == 2013) %>% pull(Count)` killers were still active, while the peak was in 1990 with `r timeline %>% summarize(max(Count)) %>% pull()` killers. Hover over the timeline to display the count for each year. {data-width=740}
+
+```{r}
+# Plot number of killers active
+timeline %>%
+  hchart("line", hcaes(x = "Year", y = "Count"), name = "Killers active", color = "#7d3945")
+```
+
+### This table shows the number of active serial killers for each year from `r timeline %>% summarize(min(Year)) %>% pull()` to `r timeline %>% summarize(max(Year)) %>% pull()`. {data-width=300}
+
+```{r}
+timeline %>%
+  arrange(-Count, Year) %>%
+  kable(escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```  
 
 Locations {data-icon="fa-map-marker-alt"}
 =======================================================================
