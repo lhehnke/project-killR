@@ -43,7 +43,7 @@ Data {data-icon="fa-chart-line"}
 Row
 -----------------------------------------------------------------------
 
-### This table contains data on `r nrow(killers_df)` serial killers from `r killers_df %>% filter(!is.na(country)) %>% distinct(country) %>% nrow()` countries that was scraped from [Wikipedia](https://de.wikipedia.org/wiki/Liste_von_Serienmördern#Serienmörder-Paare/Gruppen) in February 2018. You can find the replication script and original dataset [here](https://github.com/lhehnke/serial-killers).
+### This table contains data on `r nrow(killers_df)` serial killers from `r killers_df %>% filter(!is.na(country)) %>% distinct(country) %>% nrow()` countries that was scraped from [Wikipedia](https://de.wikipedia.org/wiki/Liste_von_Serienmördern) in February 2018 (click [here](https://github.com/lhehnke/serial-killers) for the replication script). You can search the table, sort the columns, and filter the entries.
 
 ```{r}
 killers_df %>% 
@@ -78,12 +78,10 @@ timeline <- killers_df %>%
   mutate(Count = replace(Count, is.na(Count), 0))
 ```
 
-### The first serial killer appeared in `r timeline %>% summarize(min(Year)) %>% pull()`. In 2013, `r timeline %>% filter(Year == 2013) %>% pull(Count)` killers were still active. The peak was in 1990 with `r timeline %>% summarize(max(Count)) %>% pull()` killers. {data-width=740}
+### The first serial killer appeared in `r timeline %>% summarize(min(Year)) %>% pull()`. In 2013, `r timeline %>% filter(Year == 2013) %>% pull(Count)` killers were still active, while the peak was in 1990 with `r timeline %>% summarize(max(Count)) %>% pull()` killers. Hover over the timeline to display the count for each year. {data-width=740}
 
 ```{r}
 # Plot number of killers active
-library(highcharter)
-
 timeline %>%
   hchart("line", hcaes(x = "Year", y = "Count"), name = "Killers active", color = "#7d3945")
 ```
