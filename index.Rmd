@@ -28,7 +28,7 @@ library(flexdashboard)
 if (!require("pacman")) install.packages("pacman")
 library(pacman)
 
-p_load(highcharter, leaflet, lubridate, kableExtra, plotly, tidyverse)
+p_load(DT, highcharter, leaflet, lubridate, kableExtra, plotly, tidyverse)
 
 # Set directory
 MAIN_DIR <- rprojroot::find_rstudio_root_file()
@@ -50,8 +50,7 @@ killers_df %>%
   select(name, pseudonym, sex, country, victims_proven, victims_suspected) %>%
   arrange(name, -victims_proven) %>%
   rename(Killer = name, Alias = pseudonym, Sex = sex, Country = country, "Victims (proven)" = victims_proven, "Victims (suspected)" = victims_suspected) %>%
-  kable(escape = FALSE) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
+  datatable(filter = "bottom", style = "bootstrap")
 ```
 
 Timeline {data-icon="fa-history"}
