@@ -50,7 +50,10 @@ killers_df %>%
   select(name, pseudonym, sex, country, victims_proven, victims_suspected) %>%
   arrange(name, -victims_proven) %>%
   rename(Killer = name, Alias = pseudonym, Sex = sex, Country = country, "Victims (proven)" = victims_proven, "Victims (suspected)" = victims_suspected) %>% 
-  DT::datatable(filter = "bottom", style = "bootstrap", extensions = "Buttons", options = list(dom = "Bfrtip", buttons = list("copy", list(extend = "collection", filename = "Serial_killeRs", buttons = list(list(extend = "csv", filename = "Serial_killeRs"), list(extend = "excel", filename = "Serial_killeRs"), list(extend = "pdf", filename = "Serial_killeRs")), text = "Download"))))
+  DT::datatable(filter = "bottom", style = "bootstrap", extensions = "Buttons", options = list(dom = "Bfrtip", buttons = list("copy", list(extend = "collection", buttons = list(
+    list(extend = "csv", filename = "Serial_killeRs", title = "Project KillR: International serial killers from 1435-2013"), 
+    list(extend = "excel", filename = "Serial_killeRs", title = "Project KillR: International serial killers from 1435-2013"), 
+    list(extend = "pdf", filename = "Serial_killeRs", title = "Project KillR: \nInternational serial killers from 1435-2013")), text = "Download"))))
 ```
 
 Killers {data-icon="fa-user-secret"}
